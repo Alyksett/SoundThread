@@ -9,11 +9,15 @@ var replace_node = false
 var node_to_replace
 var connect_to_node = false
 var node_to_connect_to
+var insert_mode = false
+var insert_connection = {}
+var filter_port_type = -1  # -1 = no filter, 0 = audio, 1 = pvoc
 var uiscale
 var favourites
 signal make_node(command)
 signal swap_node(node_to_replace, command)
 signal connect_to_clicked_node(node_to_connect_to, command)
+signal insert_on_connection(connection: Dictionary, command: String)
 
 
 func _ready() -> void:
@@ -60,7 +64,16 @@ func display_items(filter: String):
 		#filter out output node
 		if title == "Output File":
 			continue
-		
+
+		# In insert mode, only show nodes whose input and output port types match the connection
+		if filter_port_type >= 0:
+			var item_inputs = JSON.parse_string(item.get("inputtype", ""))
+			var item_outputs = JSON.parse_string(item.get("outputtype", ""))
+			if item_inputs == null or item_outputs == null or item_inputs.is_empty() or item_outputs.is_empty():
+				continue
+			if int(item_inputs[0]) != filter_port_type or int(item_outputs[0]) != filter_port_type:
+				continue
+
 		var category = item.get("category", "")
 		var subcategory = item.get("subcategory", "")
 		var short_desc = item.get("short_description", "")
@@ -132,6 +145,8 @@ func _on_item_selected(key: String):
 		swap_node.emit(node_to_replace, key)
 	elif connect_to_node == true:
 		connect_to_clicked_node.emit(node_to_connect_to, key)
+	elif insert_mode == true:
+		insert_on_connection.emit(insert_connection, key)
 	else:
 		make_node.emit(key) # send out signal to main patch
 

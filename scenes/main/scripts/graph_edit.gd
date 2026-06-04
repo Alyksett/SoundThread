@@ -856,3 +856,40 @@ func node_position_changed(from: Vector2, to: Vector2, node: Node) -> void:
 
 func move_node(node: Node, to: Vector2) -> void:
 	node.position_offset = to
+
+func _insert_on_connection(connection: Dictionary, command: String) -> void:
+	var from_node_name = str(connection["from_node"])
+	var from_port = int(connection["from_port"])
+	var to_node_name = str(connection["to_node"])
+	var to_port = int(connection["to_port"])
+
+	var from_node = get_node_or_null(NodePath(from_node_name))
+	var to_node = get_node_or_null(NodePath(to_node_name))
+	if from_node == null or to_node == null:
+		return
+
+	# Validate compatibility before creating the node
+	if not node_data.has(command):
+		return
+	var node_info = node_data[command]
+	var inputs_raw = JSON.parse_string(node_info.get("inputtype", ""))
+	var outputs_raw = JSON.parse_string(node_info.get("outputtype", ""))
+	if inputs_raw == null or outputs_raw == null or inputs_raw.is_empty() or outputs_raw.is_empty():
+		return
+	var connection_port_type = from_node.get_output_port_type(from_port)
+	if int(inputs_raw[0]) != connection_port_type or int(outputs_raw[0]) != connection_port_type:
+		return
+
+	# Position new node midway between the two connected nodes
+	var new_x = (from_node.position_offset.x + from_node.size.x + to_node.position_offset.x) * 0.5 - 153.0
+	var new_y = (from_node.position_offset.y + to_node.position_offset.y) * 0.5
+
+	var new_node = _make_node(command)
+	if new_node == null:
+		return
+	new_node.position_offset = Vector2(new_x, new_y)
+
+	# Remove the old connection and wire through the new node
+	_on_graph_edit_disconnection_request(from_node_name, from_port, to_node_name, to_port)
+	_on_connection_request(from_node_name, from_port, new_node.name, 0)
+	_on_connection_request(new_node.name, 0, to_node_name, to_port)

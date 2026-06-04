@@ -88,6 +88,7 @@ func make_signal_connections():
 	get_node("SearchMenu").make_node.connect(graph_edit._make_node)
 	get_node("SearchMenu").swap_node.connect(graph_edit._swap_node)
 	get_node("SearchMenu").connect_to_clicked_node.connect(graph_edit._connect_to_clicked_node)
+	get_node("SearchMenu").insert_on_connection.connect(graph_edit._insert_on_connection)
 	get_node("mainmenu").make_node.connect(graph_edit._make_node)
 	get_node("mainmenu").open_help.connect(open_help.show_help_for_node)
 	get_node("Settings").open_cdp_location.connect(show_cdp_location)
@@ -659,6 +660,8 @@ func _on_graph_edit_popup_request(at_position: Vector2) -> void:
 	
 	if clicked_node and clicked_node.get_meta("command") != "outputfile":
 		var title = clicked_node.title
+		$SearchMenu.insert_mode = false
+		$SearchMenu.filter_port_type = -1
 		if Input.is_action_pressed("auto_link_nodes"):
 			$SearchMenu/VBoxContainer/ReplaceLabel.text = "Connect to " + title
 			$SearchMenu/VBoxContainer/ReplaceLabel.show()
@@ -672,14 +675,28 @@ func _on_graph_edit_popup_request(at_position: Vector2) -> void:
 			$SearchMenu.connect_to_node = false
 			$SearchMenu.node_to_replace = clicked_node
 	else:
-		var interface_settings = ConfigHandler.load_interface_settings()
-		if interface_settings.right_click_opens_explore:
-			open_explore()
-			return
-		else:
-			$SearchMenu/VBoxContainer/ReplaceLabel.hide()
+		var closest_connection = graph_edit.get_closest_connection_at_point(effect_position)
+		if closest_connection.size() > 0:
+			var from_gn = graph_edit.get_node_or_null(NodePath(str(closest_connection["from_node"])))
+			var conn_port_type = from_gn.get_output_port_type(closest_connection["from_port"]) if from_gn else -1
+			$SearchMenu/VBoxContainer/ReplaceLabel.text = "Insert into connection"
+			$SearchMenu/VBoxContainer/ReplaceLabel.show()
 			$SearchMenu.replace_node = false
 			$SearchMenu.connect_to_node = false
+			$SearchMenu.insert_mode = true
+			$SearchMenu.insert_connection = closest_connection
+			$SearchMenu.filter_port_type = conn_port_type
+		else:
+			var interface_settings = ConfigHandler.load_interface_settings()
+			if interface_settings.right_click_opens_explore:
+				open_explore()
+				return
+			else:
+				$SearchMenu/VBoxContainer/ReplaceLabel.hide()
+				$SearchMenu.replace_node = false
+				$SearchMenu.connect_to_node = false
+				$SearchMenu.insert_mode = false
+				$SearchMenu.filter_port_type = -1
 	
 	#calculate the xy position of the mouse clamped to the size of the window and menu so it doesn't go off the screen
 	var clamped_x = clamp(mouse_screen_pos.x, window_screen_pos.x, window_screen_pos.x + window_size.x - $SearchMenu.size.x)

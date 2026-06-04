@@ -219,7 +219,7 @@ func load_graph_edit(path: String):
 					optionbutton.selected = node_data["optionbutton_values"][optionbutton_name]
 
 		#restore dynamic inlets
-		if node_data.has("addremoveinlets") and new_node.has_node("addremoveinlets"):
+		if node_data.has("addremoveinlets") and node_data["addremoveinlets"].has("inlet_count") and new_node.has_node("addremoveinlets"):
 			print("restoring inlets")
 			var addremoveinlets = new_node.get_node("addremoveinlets")
 			addremoveinlets.set_meta("inlet_count", node_data["addremoveinlets"]["inlet_count"])
